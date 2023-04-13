@@ -66,9 +66,14 @@ def get_api_answer(timestamp):
         'from_date': timestamp
     }
     try:
-        homework_statuses = requests.get(ENDPOINT, headers=HEADERS, params=payload)
+        homework_statuses = requests.get(
+            ENDPOINT,
+            headers=HEADERS,
+            params=payload
+            )
         if homework_statuses.status_code != 200:
-            raise Exception(f'Сервер вернул ответ с кодом, отличным от 200: {homework_statuses.status_code}')
+            raise Exception(f'Сервер вернул ответ с кодом, отличным'
+                            f' от 200: {homework_statuses.status_code}')
         return homework_statuses.json()
     except requests.RequestException as error:
         logging.error(f'Ошибка при запросе к API Яндекс.Практикум: {error}')
@@ -79,12 +84,13 @@ def check_response(response):
     if not isinstance(response, dict):
         raise TypeError('Ответ сервера приходит не в виде словаря')
     if 'homeworks' not in response:
-        raise exceptions.EmptyResponseError('Ответ сервера не содержит ключ homeworks')
+        raise exceptions.EmptyResponseError('Ответ сервера'
+                                            ' не содержит ключ homeworks')
     homeworks = response['homeworks']
     if not isinstance(homeworks, list):
         raise TypeError('Значение с ключом homeworks не является списком')
     return homeworks
-    
+
 
 def parse_status(homework):
     """Функция проверки статуса домашки."""
@@ -93,7 +99,8 @@ def parse_status(homework):
     homework_name = homework['homework_name']
     verdict = homework['status']
     if verdict not in HOMEWORK_VERDICTS:
-        raise ValueError(f'Сервер передал некорректный или пустой статус: {verdict}')
+        raise ValueError(f'Сервер передал некорректный'
+                         f' или пустой статус: {verdict}')
     return (
         f'Изменился статус проверки работы "{homework_name}".'
         f' {HOMEWORK_VERDICTS[verdict]}'
@@ -102,10 +109,8 @@ def parse_status(homework):
 
 def main():
     """Основная логика работы бота."""
-
     if not check_tokens():
         SystemExit
-    
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     timestamp = int(time.time())
     last_status = ''
@@ -113,14 +118,14 @@ def main():
         try:
             response = get_api_answer(timestamp=timestamp)
             homeworks = check_response(response)
-            
             if homeworks:
                 current_status = parse_status(homeworks[0])
             else:
                 current_status = 'Статус отсутствует'
             if current_status != last_status:
                 send_message(bot, current_status)
-                logging.DEBUG(f'Сообщение успешно отправлено: {current_status}')
+                logging.DEBUG(f'Сообщение успешно отправлено:'
+                              f' {current_status}')
                 last_status = current_status
 
         except Exception as error:
