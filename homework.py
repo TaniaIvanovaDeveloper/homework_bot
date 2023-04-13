@@ -40,9 +40,8 @@ def check_tokens():
     """Функция проверки переменных окружения."""
     """Если хотя бы одна переменная отсутствует,
     выдаст ошибку."""
-    if (PRACTICUM_TOKEN is None or
-            TELEGRAM_TOKEN is None or
-            TELEGRAM_CHAT_ID is None):
+    if (PRACTICUM_TOKEN is None or TELEGRAM_TOKEN is None
+            or TELEGRAM_CHAT_ID is None):
         logging.critical('Один из токенов или несколько не определены')
         raise Exception('Один из токенов или несколько не определены')
     else:
@@ -67,10 +66,10 @@ def get_api_answer(timestamp):
     }
     try:
         homework_statuses = requests.get(
-                                        ENDPOINT,
-                                        headers=HEADERS,
-                                        params=payload
-                                        )
+            ENDPOINT,
+            headers=HEADERS,
+            params=payload
+        )
         if homework_statuses.status_code != 200:
             raise Exception(f'Сервер вернул ответ с кодом, отличным'
                             f' от 200: {homework_statuses.status_code}')
