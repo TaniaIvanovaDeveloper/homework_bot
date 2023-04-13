@@ -9,6 +9,8 @@ import telegram
 
 from dotenv import load_dotenv
 
+from . import exceptions
+
 load_dotenv()
 
 
