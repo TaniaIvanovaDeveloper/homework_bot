@@ -9,7 +9,7 @@ import telegram
 
 from dotenv import load_dotenv
 
-from . import exceptions
+from exceptions import EmptyResponseError
 
 load_dotenv()
 
@@ -85,7 +85,7 @@ def check_response(response):
     if not isinstance(response, dict):
         raise TypeError('Ответ сервера приходит не в виде словаря')
     if 'homeworks' not in response:
-        raise exceptions.EmptyResponseError('Ответ сервера'
+        raise EmptyResponseError('Ответ сервера'
                                             ' не содержит ключ homeworks')
     homeworks = response['homeworks']
     if not isinstance(homeworks, list):
