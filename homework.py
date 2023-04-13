@@ -86,7 +86,7 @@ def check_response(response):
         raise TypeError('Ответ сервера приходит не в виде словаря')
     if 'homeworks' not in response:
         raise EmptyResponseError('Ответ сервера'
-                                            ' не содержит ключ homeworks')
+                                 ' не содержит ключ homeworks')
     homeworks = response['homeworks']
     if not isinstance(homeworks, list):
         raise TypeError('Значение с ключом homeworks не является списком')
