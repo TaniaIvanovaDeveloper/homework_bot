@@ -1,15 +1,13 @@
-import requests
-
 import os
 import logging
-
 import time
+from http import HTTPStatus
 
+import requests
 import telegram
-
 from dotenv import load_dotenv
 
-from exceptions import EmptyResponseError
+from exceptions import EmptyResponseError, TokenError, ResponseToJSONError
 
 load_dotenv()
 
@@ -36,6 +34,7 @@ logging.basicConfig(
     filemode='w',
     encoding='utf-8',
 )
+logger = logging.getLogger(__name__)
 
 
 def check_tokens():
@@ -44,8 +43,8 @@ def check_tokens():
     выдаст ошибку."""
     if (PRACTICUM_TOKEN is None or TELEGRAM_TOKEN is None
             or TELEGRAM_CHAT_ID is None):
-        logging.critical('Один из токенов или несколько не определены')
-        raise Exception('Один из токенов или несколько не определены')
+        logger.critical('Один из токенов или несколько не определены')
+        raise TokenError('Один из токенов или несколько не определены')
     else:
         return True
 
@@ -54,30 +53,31 @@ def send_message(bot, message):
     """Функция отправки сообщений."""
     try:
         bot.send_message(TELEGRAM_CHAT_ID, message)
-        logging.debug('Сообщение успешно отправлено')
-    except Exception as error:
-        logging.error(f'Ошибка отправки сообщения: {error}')
+        logger.debug('Сообщение успешно отправлено')
+    except telegram.TelegramError as error:
+        logger.error(f'Ошибка отправки сообщения: {error}')
 
 
 def get_api_answer(timestamp):
     """Функция запроса к API Яндекс.Практикум."""
     """Отправляет запрос к единственному эндпоинту.
     При успешном ответе возвращает статусы домашней работы."""
-    payload = {
-        'from_date': timestamp
-    }
     try:
+        payload = {
+            'from_date': timestamp
+        }
         homework_statuses = requests.get(
             ENDPOINT,
             headers=HEADERS,
             params=payload
         )
-        if homework_statuses.status_code != 200:
+        if homework_statuses.status_code != HTTPStatus.OK:
             raise Exception(f'Сервер вернул ответ с кодом, отличным'
                             f' от 200: {homework_statuses.status_code}')
-        return homework_statuses.json()
+        hw_statuses_json = homework_statuses.json()
+        return hw_statuses_json
     except requests.RequestException as error:
-        logging.error(f'Ошибка при запросе к API Яндекс.Практикум: {error}')
+        logger.error(f'Ошибка при запросе к API Яндекс.Практикум: {error}')
 
 
 def check_response(response):
@@ -87,6 +87,9 @@ def check_response(response):
     if 'homeworks' not in response:
         raise EmptyResponseError('Ответ сервера'
                                  ' не содержит ключ homeworks')
+    if 'current_date' not in response:
+        raise EmptyResponseError('Ответ сервера'
+                                 ' не содержит ключ current_date')
     homeworks = response['homeworks']
     if not isinstance(homeworks, list):
         raise TypeError('Значение с ключом homeworks не является списком')
@@ -98,6 +101,8 @@ def parse_status(homework):
     if 'homework_name' not in homework:
         raise KeyError('Ответ сервера не содержит ключ homework_name')
     homework_name = homework['homework_name']
+    if 'status' not in homework:
+        raise KeyError('Ответ сервера не содержит ключ status')
     verdict = homework['status']
     if verdict not in HOMEWORK_VERDICTS:
         raise ValueError(f'Сервер передал некорректный'
@@ -117,7 +122,10 @@ def main():
     last_status = ''
     while True:
         try:
-            response = get_api_answer(timestamp=timestamp)
+            try:
+                response = get_api_answer(timestamp=timestamp)
+            except ResponseToJSONError:
+                logger.error('Ошибка сериализации ответа сервера')
             homeworks = check_response(response)
             if homeworks:
                 current_status = parse_status(homeworks[0])
@@ -125,13 +133,13 @@ def main():
                 current_status = 'Статус отсутствует'
             if current_status != last_status:
                 send_message(bot, current_status)
-                logging.DEBUG(f'Сообщение успешно отправлено:'
-                              f' {current_status}')
+                logger.debug(f'Сообщение успешно отправлено:'
+                             f' {current_status}')
                 last_status = current_status
-
+                timestamp = response['current_date']
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
-            logging.error(message)
+            logger.error(message)
             send_message(bot, message)
         finally:
             time.sleep(RETRY_PERIOD)
