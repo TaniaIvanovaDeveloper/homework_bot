@@ -2,12 +2,16 @@ import os
 import logging
 import time
 from http import HTTPStatus
+from json import JSONDecodeError
 
 import requests
 import telegram
 from dotenv import load_dotenv
 
-from exceptions import EmptyResponseError, TokenError, ResponseToJSONError
+from exceptions import (EmptyResponseError,
+                        TokenError,
+                        ResponseToJSONError,
+                        ResponseError)
 
 load_dotenv()
 
@@ -74,10 +78,13 @@ def get_api_answer(timestamp):
         if homework_statuses.status_code != HTTPStatus.OK:
             raise Exception(f'Сервер вернул ответ с кодом, отличным'
                             f' от 200: {homework_statuses.status_code}')
-        hw_statuses_json = homework_statuses.json()
+        try:
+            hw_statuses_json = homework_statuses.json()
+        except JSONDecodeError:
+            raise ResponseToJSONError('Ошибка сериализации ответа сервера')
         return hw_statuses_json
-    except requests.RequestException as error:
-        logger.error(f'Ошибка при запросе к API Яндекс.Практикум: {error}')
+    except requests.RequestException:
+        raise ResponseError('Ошибка ответа сервера')
 
 
 def check_response(response):
@@ -122,10 +129,7 @@ def main():
     last_status = ''
     while True:
         try:
-            try:
-                response = get_api_answer(timestamp=timestamp)
-            except ResponseToJSONError:
-                logger.error('Ошибка сериализации ответа сервера')
+            response = get_api_answer(timestamp=timestamp)
             homeworks = check_response(response)
             if homeworks:
                 current_status = parse_status(homeworks[0])

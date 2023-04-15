@@ -8,3 +8,7 @@ class TokenError(Exception):
 
 class ResponseToJSONError(Exception):
     pass
+
+
+class ResponseError(Exception):
+    pass
